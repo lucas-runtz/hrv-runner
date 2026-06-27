@@ -2,20 +2,22 @@
 #include "MAX30105.h" //SparkFun sensor library
 
 MAX30105 particleSensor; //Declare variable for heart rate sensor (used MAX30102)
-//establish variables for window size, readings from senor, and index that tracks position in the ring buffer for rolling average of data
+//establish variables for window size, readings from sensor, and index that tracks position in the ring buffer for rolling average of data
 const int WINDOW = 10;
 long readings[WINDOW] = {0};
 int idx = 0;
 
-//for calculating heartbeats
-unsigned long prevPrevSmoothed = 0;
-unsigned long prevSmoothed = 0;
+//peak detection variables
+long prevPrevSmoothed = 0; 
+long prevSmoothed = 0;
 unsigned long lastBeat = 0;
 float bpm = 0;
 
+//beat averaging variables
 const int RR_COUNT = 4;
 float rrIntervals[RR_COUNT] = {0};
 int rrIdx = 0;
+int beatCount = 0;
 
 
 //function calculates moving average with values in readings
@@ -41,41 +43,36 @@ void setup() {
 }
 
 void loop() {
-
   long smoothed = movingAvg(particleSensor.getIR());
 
-  // peak detection
-  if (prevSmoothed > prevPrevSmoothed && prevSmoothed > smoothed && prevSmoothed > 109000){  // 
-unsigned long now = millis();
-if (now - lastBeat > 400) {
-    rrIntervals[rrIdx] = now - lastBeat;
-    rrIdx = (rrIdx + 1) % RR_COUNT;
-    lastBeat = now;
-    
-    float avgRR = 0;
-    for (int i = 0; i < RR_COUNT; i++) {
-        avgRR += rrIntervals[i];
-    }
-    avgRR /= RR_COUNT;
-    
-    if (avgRR > 0) {
+  if (prevSmoothed > prevPrevSmoothed &&
+      prevSmoothed > smoothed &&
+      prevSmoothed > 109000) {
+
+    unsigned long now = millis();
+
+    if (now - lastBeat > 400) {
+      rrIntervals[rrIdx] = now - lastBeat;
+      rrIdx = (rrIdx + 1) % RR_COUNT;
+      lastBeat = now;
+      beatCount++;
+
+      if (beatCount >= RR_COUNT) {
+        float avgRR = 0;
+        for (int i = 0; i < RR_COUNT; i++) {
+          avgRR += rrIntervals[i];
+        }
+        avgRR /= RR_COUNT;
         bpm = 60000.0 / avgRR;
         if (bpm > 35 && bpm < 150) {
-            Serial.print("BPM: ");
-            Serial.println(bpm);
+          Serial.print("BPM: ");
+          Serial.println(bpm);
         }
+      }
     }
-}
-    
-   
   }
-
-  //Serial.print("S: ");
-//Serial.println(smoothe
 
   prevPrevSmoothed = prevSmoothed;
   prevSmoothed = smoothed;
-
-  
-  delay(10); //prevents Serial from being overwhelmed with data
+  delay(10);
 }

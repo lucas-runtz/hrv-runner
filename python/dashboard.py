@@ -1,7 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
-CSV_FILE = r"C:\Users\Lucas\OneDrive\Desktop\hrv-runner\python\hrv_data.csv"
+CSV_FILE = os.path.join(os.path.dirname(__file__), "hrv_data.csv")
 
 df = pd.read_csv(CSV_FILE)
 df["timestamp"] = pd.to_datetime(df["timestamp"])

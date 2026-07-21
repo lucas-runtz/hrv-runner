@@ -3,7 +3,7 @@ import pandas as pd
 import anthropic
 from stats import check_anomaly
 
-CSV_FILE = r"C:\Users\Lucas\OneDrive\Desktop\hrv-runner\python\hrv_data.csv"
+CSV_FILE = os.path.join(os.path.dirname(__file__), "hrv_data.csv")
 WINDOW = 14
 GOOD_FEEL_THRESHOLD = 4
 MIN_BASELINE_ROWS = 5
@@ -51,6 +51,7 @@ def build_recent_context(df, window=WINDOW, good_feel_threshold=GOOD_FEEL_THRESH
         "baseline_std": baseline_std,
         "baseline_source": baseline_source,
         "today_feel": parse_numeric(today["feel"]),
+        "today_sleep": parse_numeric(today.get("sleep_hours", "")),
         "today_miles": parse_numeric(today.get("miles", "")),
         "today_duration": parse_numeric(today.get("duration_min", "")),
         "today_rpe": parse_numeric(today.get("rpe", "")),
@@ -71,6 +72,12 @@ def format_training_context(context):
         else "No subjective feel score recorded for today."
     )
 
+    sleep_text = (
+        f"Slept {context['today_sleep']:.1f} hours last night."
+        if context["today_sleep"] is not None and not pd.isna(context["today_sleep"])
+        else "No sleep data logged for last night."
+    )
+
     run_details = []
     if context["today_miles"] is not None and not pd.isna(context["today_miles"]):
         run_details.append(f"distance {context['today_miles']:.1f} miles")
@@ -85,7 +92,7 @@ def format_training_context(context):
         else "No previous-day run details were recorded."
     )
 
-    return training_load_text + " " + feel_text + " " + run_text
+    return training_load_text + " " + feel_text + " " + sleep_text + " " + run_text
 
 
 def build_prompt(context, anomaly_readout):
@@ -93,20 +100,20 @@ def build_prompt(context, anomaly_readout):
     baseline_std = context["baseline_std"]
 
     baseline_text = (
-        f"Baseline average RMSSD from {context['baseline_source']}: {baseline_mean:.1f} ms"
+        f"Baseline average HRV (RMSSD) from {context['baseline_source']}: {baseline_mean:.1f} ms"
         if baseline_mean is not None and not pd.isna(baseline_mean)
-        else "Baseline average RMSSD could not be calculated from recent data."
+        else "Baseline average HRV (RMSSD) could not be calculated from recent data."
     )
 
     baseline_variability = (
-        f"Baseline RMSSD standard deviation: {baseline_std:.1f} ms."
+        f"Baseline HRV (RMSSD) standard deviation: {baseline_std:.1f} ms."
         if baseline_std is not None and not pd.isna(baseline_std)
-        else "Baseline RMSSD variability is not available."
+        else "Baseline HRV (RMSSD) variability is not available."
     )
 
     return f"""You are helping interpret HRV recovery data for a runner. Review the following and give a short, direct recovery assessment grounded in the specific numbers.
 
-Today's RMSSD: {context['today_rmssd']:.1f} ms
+Today's HRV (RMSSD): {context['today_rmssd']:.1f} ms
 {baseline_text}
 {baseline_variability}
 Statistical readout: {anomaly_readout}

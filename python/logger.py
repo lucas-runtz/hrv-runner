@@ -5,7 +5,7 @@ import os
 
 PORT = "COM3"
 BAUD = 115200
-CSV_FILE = r"C:\Users\Lucas\OneDrive\Desktop\hrv-runner\python\hrv_data.csv"
+CSV_FILE = os.path.join(os.path.dirname(__file__), "hrv_data.csv")
 
 def parse_summary_line(line):
     parts = line.split(",")
@@ -23,7 +23,7 @@ def main():
         if not file_exists:
             writer.writerow([
                 "timestamp", "rmssd_ms", "beats", "bpm",
-                "feel", "miles", "duration_min", "rpe", "training_load"
+                "feel", "sleep_hours", "miles", "duration_min", "rpe", "training_load"
             ])
 
         ser = serial.Serial(PORT, BAUD, timeout=10)
@@ -39,9 +39,10 @@ def main():
                 beats = data.get("beats")
                 bpm = data.get("bpm")
 
-                print(f"\nReading complete: RMSSD {rmssd}ms, {beats} beats, {bpm} BPM")
+                print(f"\nReading complete: HRV: {rmssd} ms, {beats} beats, {bpm} BPM")
 
                 feel = input("How do you feel today? (1-5): ")
+                sleep_hours = input("Hours of sleep last night: ")
                 miles = input("Miles run yesterday (blank if none): ")
                 duration = input("Run duration yesterday, in minutes (blank if none): ")
                 rpe = input("Perceived effort yesterday, 1-10, 1=easy 10=max (blank if none): ")
@@ -54,7 +55,7 @@ def main():
                 timestamp = datetime.datetime.now().isoformat()
                 writer.writerow([
                     timestamp, rmssd, beats, bpm,
-                    feel, miles, duration, rpe, training_load
+                    feel, sleep_hours, miles, duration, rpe, training_load
                 ])
                 f.flush()
 

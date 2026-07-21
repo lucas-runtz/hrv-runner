@@ -5,8 +5,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import io
 import base64
+import os
 
-CSV_FILE = r"C:\Users\Lucas\OneDrive\Desktop\hrv-runner\python\hrv_data.csv"
+CSV_FILE = os.path.join(os.path.dirname(__file__), "hrv_data.csv")
 
 app = Flask(__name__)
 

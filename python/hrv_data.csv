@@ -15,3 +15,4 @@ timestamp,rmssd_ms,beats,bpm,feel,sleep_hours,miles,duration_min,rpe,training_lo
 2026-08-06T09:36:13.261971,99.8,62,66,4,8,5.5,40,6,240.0
 2026-08-08T09:11:03.787188,94.4,45,63,C:\Users\Lucas\AppData\Local\Microsoft\WindowsApps\python3.13.exe c:/Users/Lucas/OneDrive/Desktop/hrv-runner/python/logger.py,5,5.5,40,3,120.0
 2026-08-09T20:50:19.965597,92.7,59,76,3,7.5,7.7,55,5,275.0
+2026-08-10T10:46:01.378191,102.9,66,65,4,8,5,35,3,105.0

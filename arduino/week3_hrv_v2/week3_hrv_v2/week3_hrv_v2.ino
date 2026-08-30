@@ -1,3 +1,5 @@
+// HRV firmware for the MAX30101/MAX32664. Reads raw IR data (not hub's built-in BPM) and runs custom peak detection to get precise timing for RMSSD
+
 #include <SparkFun_Bio_Sensor_Hub_Library.h>
 #include <Wire.h>
 
@@ -6,8 +8,13 @@ int mfioPin = 5;
 SparkFun_Bio_Sensor_Hub bioHub(resPin, mfioPin);
 bioData body;
 
+
+// Signal filter tuning
+// two moving averages at different speeds separate the pulse wave from  the large and slowly drifitng DC baseline
 const float BASELINE_ALPHA  = 0.01;
-const float SMOOTH_BETA     = 0.15;
+const float SMOOTH_BETA     = 0.15; 
+
+// adaptive peak detection, fixed threshold failed whenever finger pressure shifted the signal amplitude
 const float THRESH_FRACTION = 0.40;
 const float PEAK_DECAY      = 0.99;
 const float THRESH_FLOOR    = 15.0;
@@ -52,6 +59,7 @@ float recentRR[MEDIAN_WINDOW];
 int recentRRCount = 0;
 int recentRRIdx = 0;
 
+// Median of the alst few valid intervals used to catch single invalid beat without being thrown off by day-to-day variation
 float medianOfRecent() {
   float sorted[MEDIAN_WINDOW];
   int n = recentRRCount;
@@ -66,6 +74,8 @@ float medianOfRecent() {
   return sorted[n / 2];
 }
 
+
+// Called on manual reset
 void resetSession() {
   rrCount = 0;
   sessionStarted = false;

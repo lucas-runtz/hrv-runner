@@ -7,6 +7,8 @@ PORT = "COM3"
 BAUD = 115200
 CSV_FILE = os.path.join(os.path.dirname(__file__), "hrv_data.csv")
 
+# Expects the Arduino's machine-readable summary line format
+# Example: "RMSSD: 90.6, beats: 60, bpm: 75"
 def parse_summary_line(line):
     parts = line.split(",")
     data = {}
@@ -47,6 +49,9 @@ def main():
                 duration = input("Run duration yesterday, in minutes (blank if none): ")
                 rpe = input("Perceived effort yesterday, 1-10, 1=easy 10=max (blank if none): ")
 
+                # Training load is duration * RPE, but if either is blank or invalid, leave it blank
+                # Captures both volume and intensity of training, useful for tracking training stress instead of just distance or time
+                
                 try:
                     training_load = float(duration) * float(rpe)
                 except ValueError:

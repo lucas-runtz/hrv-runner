@@ -3,6 +3,9 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 
 CSV_FILE = os.path.join(os.path.dirname(__file__), "hrv_data.csv")
+
+# Minimum number of complete rows (with both training load and HRV) required to run a regression
+# Safeguard against running a regression on too few data points, which would give unreliable results
 MIN_ROWS_FOR_REGRESSION = 10
 
 
@@ -29,6 +32,7 @@ def run_regression():
     r_squared = model.score(X, y)
 
     print(f"Rows used: {len(usable)}")
+    # Coefficient indicates how much HRV changes per unit of training load, R-squared indicates how much of the variation in HRV is explained by training load alone
     print(f"Training load coefficient: {load_coef:.3f} "
           f"(HRV change per +1 unit of training load)")
     print(f"R-squared: {r_squared:.3f} "

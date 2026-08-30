@@ -1,5 +1,8 @@
 import pandas as pd
 
+# Flags unusually low HRV readings based on recent history using a z-score threshold (how many standard deviatons value sits below recent average)
+# Returns a message indicating whether an anomaly was detected or not
+
 def check_anomaly(csv_path, window=14, threshold=1.5):
     df = pd.read_csv(csv_path)
     df["timestamp"] = pd.to_datetime(df["timestamp"])

@@ -1,4 +1,5 @@
-// HRV firmware for the MAX30101/MAX32664. Reads raw IR data (not hub's built-in BPM) and runs custom peak detection to get precise timing for RMSSD
+// HRV firmware for the MAX30101/MAX32664
+// Reads raw IR data (not hub's built-in BPM) and runs custom peak detection to get precise timing for RMSSD
 
 #include <SparkFun_Bio_Sensor_Hub_Library.h>
 #include <Wire.h>
@@ -100,6 +101,10 @@ float calcRMSSD(float intervals[], int count) {
   return sqrt(sum / (count - 1));
 }
 
+// Forces powercycle of the MAX32664 Hub via the RST pin
+/* Pressing the Arduino's own reset button restarts this sketch but leaves
+the hub running mid-state, which caused corrupted sessions */
+
 void hardResetHub() {
   pinMode(resPin, OUTPUT);
   pinMode(mfioPin, OUTPUT);
@@ -156,6 +161,8 @@ void loop() {
   if (ir == lastRawIr) return;
   lastRawIr = ir;
 
+  // First valid sample after finger contact primes both filters to current reading instead of starting from zero
+
   if (!filterPrimed) {
     smoothed = ir;
     baseline = ir;
@@ -173,22 +180,30 @@ void loop() {
   float threshold = signalPeak * THRESH_FRACTION;
   if (threshold < THRESH_FLOOR) threshold = THRESH_FLOOR;
 
+  // Tracks the true peak of the current pulse cycle instead of firing on first local bump
+  // Firing on first local bump was catching the dicrotic notch as a false beat in earlier versions
   if (ac > runningMax) {
     runningMax = ac;
     runningMaxTime = millis();
   }
 
+// Requires a real drop from the peak before confirming a beat. Without this minor noise on the falling edge triggered false detections
   bool clearlyFalling = (runningMax - ac) > (runningMax * FALL_FRACTION);
 
   if (runningMax > threshold && clearlyFalling && !beatLatched) {
     unsigned long now = runningMaxTime;
 
+    // Refractory period blocks two beats from being counted too close together, rejects the dicrotic notch
+    // Warmup period ignores first few seconds while filters are stabilizing
     if (now - lastBeat > REFRACTORY_MS && millis() - firstFingerTime > WARMUP_MS) {
+
+      //First detected beat has no prior beat to measure an interval so it only sets the timing reference
       if (!firstBeatSeen) {
         firstBeatSeen = true;
         lastBeat = now;
       } else {
         unsigned long interval = now - lastBeat;
+        // Two independent checks reject invalid beats, impossible timing or a beat too far from the recent median
         bool physiological = (interval >= RR_MIN_MS && interval <= RR_MAX_MS);
         bool consistent = true;
         if (recentRRCount >= 3) {
@@ -217,11 +232,14 @@ void loop() {
     beatLatched = true;
   }
 
+  // Re-arms detection when the signal drops back near baseline so only one beat is counted per pulse cycle
   if (ac < threshold * 0.5) {
     beatLatched = false;
     runningMax = 0;
   }
 
+  /* Reading ends when both minimum beat count and full 60 second window are satisfied
+  since using only beat count could pass on too little data if the heart rate was too fast */
   if (sessionStarted && rrCount >= MIN_INTERVALS &&
       millis() - sessionStart >= SESSION_MS) {
     float rmssd = calcRMSSD(rr, rrCount);

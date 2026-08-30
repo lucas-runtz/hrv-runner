@@ -1,18 +1,21 @@
+# Creates HRV dashboard with charts and recovery assessment using Flask, pandas, and Chart.js.
+# Requires ANTHROPIC_API_KEY environment variable for recovery assessment.
+
 from flask import Flask, render_template_string
 import pandas as pd
 import os
 import json
 import time
-import anthropic
 from stats import check_anomaly
+from ai_recovery import load_hrv_data, build_recent_context, build_prompt, get_claude_assessment
 
 CSV_FILE = os.path.join(os.path.dirname(__file__), "hrv_data.csv")
-GOOD_FEEL_THRESHOLD = 4
-MIN_BASELINE_ROWS = 5
 CACHE_TTL_SECONDS = 3600
 
 app = Flask(__name__)
 
+# In-memory cache so refreshing the page doesn't trigger a new API call
+# every time. Resets when the Flask server restarts.
 _assessment_cache = {"text": None, "timestamp": 0}
 
 def load_data():
@@ -22,57 +25,8 @@ def load_data():
     df["training_load"] = pd.to_numeric(df["training_load"], errors="coerce")
     return df
 
-def parse_numeric(value):
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-
-def build_recent_context(df):
-    today = df.iloc[-1]
-    history = df.iloc[:-1]
-
-    baseline_candidates = history.copy()
-    baseline_candidates["feel"] = pd.to_numeric(baseline_candidates["feel"], errors="coerce")
-    good_days = baseline_candidates[baseline_candidates["feel"] >= GOOD_FEEL_THRESHOLD]
-    baseline_rows = good_days if len(good_days) >= MIN_BASELINE_ROWS else history
-    baseline_source = (
-        f"recent good-feeling days (feel >= {GOOD_FEEL_THRESHOLD})"
-        if len(good_days) >= MIN_BASELINE_ROWS
-        else "recent days (not enough high-feel days logged yet)"
-    )
-
-    baseline_rmssd = pd.to_numeric(baseline_rows["rmssd_ms"], errors="coerce")
-    baseline_mean = baseline_rmssd.mean()
-    baseline_std = baseline_rmssd.std()
-
-    return {
-        "today_rmssd": parse_numeric(today["rmssd_ms"]),
-        "baseline_mean": baseline_mean,
-        "baseline_std": baseline_std,
-        "baseline_source": baseline_source,
-        "today_feel": parse_numeric(today["feel"]),
-        "today_training_load": parse_numeric(today.get("training_load", "")),
-    }
-
-def format_training_context(context):
-    training_load = context["today_training_load"]
-    load_text = "No training load recorded for the previous day." if training_load is None or pd.isna(training_load) else f"Previous day training load: {training_load:.1f}."
-    feel_text = f"Today's subjective feel score is {context['today_feel']:.0f}/5." if context["today_feel"] is not None and not pd.isna(context["today_feel"]) else "No feel score recorded."
-    return load_text + " " + feel_text
-
-def build_prompt(context, anomaly_readout):
-    baseline_mean = context["baseline_mean"]
-    baseline_text = f"Baseline average HRV (RMSSD) from {context['baseline_source']}: {baseline_mean:.1f} ms" if baseline_mean is not None and not pd.isna(baseline_mean) else "Baseline could not be calculated yet."
-    return f"""You are helping interpret HRV recovery data for a runner. Give a short, direct recovery assessment grounded in these numbers.
-
-Today's HRV (RMSSD): {context['today_rmssd']:.1f} ms
-{baseline_text}
-Statistical readout: {anomaly_readout}
-{format_training_context(context)}
-
-Give a 2-3 sentence recovery assessment, stating whether today should be treated as a recovery day, easy training, or normal training. Reason about my personal trend, not generic ranges."""
-
+# Returns the cached assessment if still fresh; otherwise builds a new
+# prompt using the shared ai_recovery logic and calls the Claude API.
 def get_assessment():
     now = time.time()
     if _assessment_cache["text"] and (now - _assessment_cache["timestamp"] < CACHE_TTL_SECONDS):
@@ -82,7 +36,7 @@ def get_assessment():
     if not api_key:
         return "Set ANTHROPIC_API_KEY to enable the recovery assessment."
 
-    df = load_data()
+    df = load_hrv_data(CSV_FILE)
     if len(df) < 2:
         return "Log a few more mornings to unlock the recovery assessment."
 
@@ -91,13 +45,7 @@ def get_assessment():
     prompt = build_prompt(context, anomaly_readout)
 
     try:
-        client = anthropic.Anthropic(api_key=api_key)
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        text = response.content[0].text.strip()
+        text = get_claude_assessment(prompt, api_key)
         _assessment_cache["text"] = text
         _assessment_cache["timestamp"] = now
         return text
@@ -225,6 +173,7 @@ const grid = isDark ? '#2c2c2a' : '#e1e0d9';
 const blue = isDark ? '#3987e5' : '#2a78d6';
 const coral = isDark ? '#eb6834' : '#d85a30';
 
+// Shared chart scale options for consistent styling
 const commonScales = {{
   x: {{ ticks: {{ color: ink, font: {{ size: 11 }}, maxRotation: 45, autoSkip: true }}, grid: {{ display: false }} }},
   y: {{ ticks: {{ color: ink, font: {{ size: 11 }} }}, grid: {{ color: grid }} }}

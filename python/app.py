@@ -60,6 +60,7 @@ def dashboard():
     rmssd = df["rmssd_ms"].round(1).tolist()
     load = df["training_load"].fillna(0).round(0).tolist()
     feel = df["feel"].tolist()
+    sleep = df["sleep_hours"].tolist()
 
     latest_rmssd = round(df["rmssd_ms"].iloc[-1], 1)
     baseline = round(df[pd.to_numeric(df["feel"], errors="coerce") >= 4]["rmssd_ms"].mean(), 1)
@@ -159,6 +160,11 @@ def dashboard():
     <h2>Subjective feel score</h2>
     <div class="chart-wrap"><canvas id="feelChart" role="img" aria-label="Line chart of daily subjective feel score, 1 to 5"></canvas></div>
   </div>
+
+  <div class="section">
+    <h2>Sleep (hours)</h2>
+    <div class="chart-wrap"><canvas id="sleepChart" role="img" aria-label="Line chart of hours of sleep per night"></canvas></div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -167,6 +173,7 @@ const labels = {json.dumps(labels)};
 const rmssd = {json.dumps(rmssd)};
 const load = {json.dumps(load)};
 const feel = {json.dumps(feel)};
+const sleep = {json.dumps(sleep)};
 const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
 const ink = isDark ? '#c3c2b7' : '#52514e';
 const grid = isDark ? '#2c2c2a' : '#e1e0d9';
@@ -195,6 +202,12 @@ new Chart(document.getElementById('feelChart'), {{
   type: 'line',
   data: {{ labels, datasets: [{{ data: feel, borderColor: blue, backgroundColor: blue + '1a', fill: true, tension: 0.25, pointRadius: 3, pointBackgroundColor: blue, borderWidth: 2 }}] }},
   options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ display: false }} }}, scales: {{ ...commonScales, y: {{ ...commonScales.y, min: 0, max: 6}} }} }}
+}});
+
+new Chart(document.getElementById('sleepChart'), {{
+  type: 'line',
+  data: {{ labels, datasets: [{{ data: sleep, borderColor: blue, backgroundColor: blue + '1a', fill: true, tension: 0.25, pointRadius: 3, pointBackgroundColor: blue, borderWidth: 2, spanGaps: true }}] }},
+  options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ legend: {{ display: false }} }}, scales: {{ ...commonScales, y: {{ ...commonScales.y, min: 0, max: 10 }} }} }}
 }});
 </script>
 </body>

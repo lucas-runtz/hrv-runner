@@ -29,7 +29,7 @@ The sensor takes a reading, the firmware turns it into a heartrate variability n
 
 **Sensor hardware.** A MAX30101/MAX32664 pulse oximeter connects to an Arduino Mega 2560 over I2C. The MAX32664 has its own onboard processor and a built-in BPM output, but the firmware bypasses that and reads the raw infrared signal directly, running my own signal processing instead.
 
-![Wired sensor setup](docs/hardware_wide.jpg)
+![Wired sensor setup](docs/new_sensor_setup.jpg)
 
 **Signal processing (Arduino C++).** The raw signal is dominated by a large & slowly drifting baseline with the real pulse riding on top as a small wave. Two moving averages at different speeds strip the baseline out and isolate the pulse. An adaptive threshold and maximum peak detector find individual heartbeats with a refractory period, a warmup period, and a median consistency check to reject invalid beats. The firmware calculates RMSSD (the standard clinical measure of HRV) from the differences in timing between valid beats over a one minute reading.
 
@@ -37,7 +37,8 @@ The sensor takes a reading, the firmware turns it into a heartrate variability n
 
 **Dashboard (Flask + Chart.js).** A local web app reads the CSV and renders summaries of metrics (latest HRV, personal baseline, training load, days logged) and interactive charts for HRV, training load, and feel score over time.
 
-![Dashboard screenshot](docs/dashboard.jpg)
+![Dashboard screenshot](docs/updated_flask_app_1.jpg)
+![Dashboard screenshot 2](docs/updated_flask_app_2.jpg)
 
 **Recovery assessment (Claude API).** The dashboard computes a personal baseline from days the runner reports feeling well-recovered, and sends that along with the day's reading, recent training context and an outlier/anomaly check to the Claude API. The response is a short, specific recovery read reasoned from the runner's own trend, not a fixed population threshold for HRV.
 

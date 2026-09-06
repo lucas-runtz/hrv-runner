@@ -9,7 +9,7 @@ A wearable heart rate variability (HRV) monitor built to track running recovery 
 ## Contents
 - [Why I built this](#why-i-built-this)
 - [How it works](#how-it-works)
-- [Getting here: what didn't work](#getting-here-what-didnt-work)
+- [Getting here](#getting-here)
 - [Key finding: the breath-hold experiment](#key-finding-the-breath-hold-experiment)
 - [Data analysis](#data-analysis)
 - [Known limitations](#known-limitations)
@@ -19,42 +19,47 @@ A wearable heart rate variability (HRV) monitor built to track running recovery 
 
 ## Why I built this
 
-My 1600m times dropped noticeably during my junior track season, and I was later diagnosed with iron deficiency. The deficiency suppresses recovery in runners unknowingly until it's too late, and performance drops. I had already dealt with iron deficiency another time during my sophomore cross country season. This got me curious about how we can actually measure running recovery instead of just guessing on how we feel. The project measures HRV every morning and uses it, alongside training and sleep data, to give an individualized recovery read and dashboard for any runner who wants to build one.
+My 1600m times dropped noticeably during my junior track season, and I was later diagnosed with iron deficiency. The deficiency suppresses recovery in runners unknowingly until it's too late, and performance drops. I had already dealt with iron deficiency another time during my sophomore cross country season. This got me curious about how we can actually measure running recovery instead of just guessing based on how we feel. The project measures HRV every morning and uses it, alongside training and sleep data, to give an individualized recovery read and dashboard for any runner who wants to build one.
 
 ---
 
 ## How it works
 
-The sensor takes a reading, the firmware turns it into a heartrate variability number to measure stress, this data is collected with other metrics like sleep and run intensity, and a program provides an interactive dashboard with training recommendations.
+The sensor takes a reading and the firmware turns it into a heartrate variability number to measure stress. This data is collected with other metrics like sleep and run intensity, which is fed into a program that provides an interactive dashboard with training recommendations.
 
-**Sensor hardware.** A MAX30101/MAX32664 pulse oximeter connects to an Arduino Mega 2560 over I2C. The MAX32664 has its own onboard processor and a built-in BPM output, but the firmware bypasses that and reads the raw infrared signal directly, running my own signal processing instead.
+**Sensor hardware:** A MAX30101/MAX32664 pulse oximeter connects to an Arduino Mega 2560 over I2C. The MAX32664 has its own onboard processor and a built-in BPM output, but the firmware bypasses that and reads the raw infrared signal directly, running my own signal processing instead.
 
 ![Wired sensor setup](docs/new_sensor_setup.jpg)
 
-**Signal processing (Arduino C++).** The raw signal is dominated by a large & slowly drifting baseline with the real pulse riding on top as a small wave. Two moving averages at different speeds strip the baseline out and isolate the pulse. An adaptive threshold and maximum peak detector find individual heartbeats with a refractory period, a warmup period, and a median consistency check to reject invalid beats. The firmware calculates RMSSD (the standard clinical measure of HRV) from the differences in timing between valid beats over a one minute reading.
+**Signal processing (Arduino C++):** The raw signal is dominated by a large and slowly drifting baseline with the real pulse riding on top as a small wave. Two moving averages at different speeds strip the baseline out and isolate the pulse. An adaptive threshold and maximum peak detector find individual heartbeats with a refractory period, a warmup period, and a median consistency check to reject invalid beats. The firmware calculates RMSSD (the standard clinical measure of HRV) from the differences in timing between valid beats over a one minute reading.
 
-**Logging (Python).** A script gets the Arduino's serial output, waits for a completed reading, and asks the user for a subjective feel score, hours of sleep, and the previous day's training details. Training load is calculated as duration × perceived effort (RPE). This is a standard sports science method that captures training intensity instead of just mileage. Every reading is added to a CSV file.
+**Logging (Python):** A script gets the Arduino's serial output, waits for a completed reading, and asks the user for a subjective feel score, hours of sleep, and the previous day's training details. Training load is calculated as duration × perceived effort (RPE). This is a standard sports science method that captures training intensity instead of just mileage. Every reading is added to a CSV file.
 
-**Dashboard (Flask + Chart.js).** A local web app reads the CSV and renders summaries of metrics (latest HRV, personal baseline, training load, days logged) and interactive charts for HRV, training load, and feel score over time.
+**Dashboard (Flask + Chart.js):** A local web app reads the CSV and renders summaries of metrics (latest HRV, personal baseline, training load, days logged) and interactive charts for HRV, training load, and feel score over time.
 
 ![Dashboard screenshot](docs/updated_flask_app_1.jpg)
 ![Dashboard screenshot 2](docs/updated_flask_app_2.jpg)
 
-**Recovery assessment (Claude API).** The dashboard computes a personal baseline from days the runner reports feeling well-recovered, and sends that along with the day's reading, recent training context and an outlier/anomaly check to the Claude API. The response is a short, specific recovery read reasoned from the runner's own trend, not a fixed population threshold for HRV.
+**Recovery assessment (Claude API):** The dashboard computes a personal baseline from days the runner reports feeling well-recovered, and sends that along with the day's reading, recent training context and an outlier/anomaly check to the Claude API. The response is a short, specific recovery read reasoned from the runner's own trend, not a fixed population threshold for HRV.
 
 ---
 
-## Getting here: what didn't work
+## Getting here
 
 The current design is the result of trial and error.
 
-**First sensor.** I started with a MAX30102 sensor, wired through a breadboard, with a moving average filter and simple peak detection with a threshold. It worked in controlled conditions but produced extremely inconsistent BPM readings whenever finger pressure shifted.
+**First sensor:** I started with a MAX30102 sensor, wired through a breadboard, with a moving average filter and simple peak detection with a threshold. It worked in controlled conditions but produced extremely inconsistent BPM readings whenever finger pressure shifted.
+![First sensor setup](docs/old_circuit_overview.jpg)
 
-**Second sensor.** I switched to a MAX30101/MAX32664, a sensor with its own signal processing hub. This solved the reliability problem, but the hub's built-in BPM output doesn't show individual beat timing that HRV needs. I had to bypass the hub's processed output and read the raw infrared signal myself, then rebuild peak detection code from scratch.
+**Second sensor:** I switched to a MAX30101/MAX32664, a sensor with its own signal processing hub. This solved the reliability problem, but the hub's built-in BPM output doesn't show individual beat timing that HRV needs. I had to bypass the hub's processed output and read the raw infrared signal myself, then rebuild peak detection code from scratch.
 
-**Several peak detection versions.** My first peak detector on the new sensor alternated between two peaks on every pulse wave, which inflated HRV by measuring fake variation. I tried an upslope-based detector to fix this, but it made it worse and missed about half of all real beats. I reverted to a running-max peak detector with a stricter fall-fraction threshold, which the current firmware uses.
+**Several peak detection versions:** My first peak detector on the new sensor alternated between two peaks on every pulse wave, which inflated HRV by measuring fake variation. I tried an upslope-based detector to fix this, but it made it worse and missed about half of all real beats. I reverted to a running-max peak detector with a stricter fall-fraction threshold, which the current firmware uses.
 
-**Signal filtering.** Early noise removal settings left too much noise in the signal and HRV stayed inflated even after peak detection improved. Tightening the smoothing constant made repeated readings have a consistent and stable range for the first time, which led to the breath hold experiment below.
+**Signal filtering:** Early noise removal settings left too much noise in the signal and HRV stayed inflated even after peak detection improved. Tightening the smoothing constant made repeated readings have a consistent and stable range for the first time, which led to the breath hold experiment below.
+
+**First Flask app:** The first version of the dashboard was rudimentary, with no user input, graphics, or AI recovery assessment baked into the app.
+![First dashboard screenshot](docs/flask_app.jpg)
+
 
 ---
 
@@ -68,7 +73,7 @@ I took a reading and held my breath partway through. RMSSD dropped from roughly 
 
 ## Data analysis
 
-I ran a linear regression testing whether the previous day's training load predicts next-morning HRV.
+I ran a linear regression testing whether the previous day's training load predicts next-morning HRV. I had 31 days' worth of data from measuring my HRV and training load.
 
 | Metric | Value |
 |---|---|
@@ -120,7 +125,7 @@ Training load explains essentially none of the variation in RMSSD. With an early
 
 ## License
 
-MIT. free to use, modify, and build your own version.
+MIT. Free to use, modify, and build your own version.
 
 ## Built by
 

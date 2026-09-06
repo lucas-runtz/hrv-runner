@@ -29,7 +29,7 @@ The sensor takes a reading and the firmware turns it into a heartrate variabilit
 
 **Sensor hardware:** A MAX30101/MAX32664 pulse oximeter connects to an Arduino Mega 2560 over I2C. The MAX32664 has its own onboard processor and a built-in BPM output, but the firmware bypasses that and reads the raw infrared signal directly, running my own signal processing instead.
 
-![Wired sensor setup](docs/new_sensor_setup.jpg)
+![Wired sensor setup](docs/new_sensor_setup.JPG)
 
 **Signal processing (Arduino C++):** The raw signal is dominated by a large and slowly drifting baseline with the real pulse riding on top as a small wave. Two moving averages at different speeds strip the baseline out and isolate the pulse. An adaptive threshold and maximum peak detector find individual heartbeats with a refractory period, a warmup period, and a median consistency check to reject invalid beats. The firmware calculates RMSSD (the standard clinical measure of HRV) from the differences in timing between valid beats over a one minute reading.
 
@@ -37,8 +37,8 @@ The sensor takes a reading and the firmware turns it into a heartrate variabilit
 
 **Dashboard (Flask + Chart.js):** A local web app reads the CSV and renders summaries of metrics (latest HRV, personal baseline, training load, days logged) and interactive charts for HRV, training load, and feel score over time.
 
-![Dashboard screenshot](docs/updated_flask_app_1.jpg)
-![Dashboard screenshot 2](docs/updated_flask_app_2.jpg)
+![Dashboard screenshot](docs/updated_flask_app_1.png)
+![Dashboard screenshot 2](docs/updated_flask_app_2.png)
 
 **Recovery assessment (Claude API):** The dashboard computes a personal baseline from days the runner reports feeling well-recovered, and sends that along with the day's reading, recent training context and an outlier/anomaly check to the Claude API. The response is a short, specific recovery read reasoned from the runner's own trend, not a fixed population threshold for HRV.
 
@@ -49,7 +49,7 @@ The sensor takes a reading and the firmware turns it into a heartrate variabilit
 The current design is the result of trial and error.
 
 **First sensor:** I started with a MAX30102 sensor, wired through a breadboard, with a moving average filter and simple peak detection with a threshold. It worked in controlled conditions but produced extremely inconsistent BPM readings whenever finger pressure shifted.
-![First sensor setup](docs/old_circuit_overview.jpg)
+![First sensor setup](docs/old_circuit_overview.JPG)
 
 **Second sensor:** I switched to a MAX30101/MAX32664, a sensor with its own signal processing hub. This solved the reliability problem, but the hub's built-in BPM output doesn't show individual beat timing that HRV needs. I had to bypass the hub's processed output and read the raw infrared signal myself, then rebuild peak detection code from scratch.
 
@@ -58,7 +58,7 @@ The current design is the result of trial and error.
 **Signal filtering:** Early noise removal settings left too much noise in the signal and HRV stayed inflated even after peak detection improved. Tightening the smoothing constant made repeated readings have a consistent and stable range for the first time, which led to the breath hold experiment below.
 
 **First Flask app:** The first version of the dashboard was rudimentary, with no user input, graphics, or AI recovery assessment baked into the app.
-![First dashboard screenshot](docs/flask_app.jpg)
+![First dashboard screenshot](docs/flask_app.png)
 
 
 ---

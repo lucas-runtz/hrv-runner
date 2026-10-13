@@ -5,7 +5,7 @@ import pandas as pd
 
 def check_anomaly(csv_path, window=14, threshold=1.5):
     df = pd.read_csv(csv_path)
-    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["timestamp"] = pd.to_datetime(df["timestamp"], format="mixed")
     df = df.sort_values("timestamp")
 
     if len(df) < 5:

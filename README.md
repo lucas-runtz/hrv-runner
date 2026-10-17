@@ -19,13 +19,13 @@ A wearable heart rate variability (HRV) monitor built to track running recovery 
 
 ## Why I built this
 
-My 1600m times dropped noticeably during my junior track season, and I was later diagnosed with iron deficiency. The deficiency suppresses recovery in runners unknowingly until it's too late, and performance drops. I had already dealt with iron deficiency another time during my sophomore cross country season. This got me curious about how we can actually measure running recovery instead of just guessing based on how we feel. The project measures HRV every morning and uses it, alongside training and sleep data, to give an individualized recovery read and dashboard for any runner who wants to build one.
+I faced running performance issues my sophomore cross country season, and I was later diagnosed with iron deficiency. The deficiency suppresses recovery in runners unknowingly until it's too late, and performance drops. This got me curious about how we can actually measure running recovery instead of just guessing based on how we feel. The project measures HRV each day nd uses it, alongside training and sleep data, to give an individualized recovery read and dashboard for any runner who wants to build one.
 
 ---
 
 ## How it works
 
-The sensor takes a reading and the firmware turns it into a heartrate variability number to measure stress. This data is collected with other metrics like sleep and run intensity, which is fed into a program that provides an interactive dashboard with training recommendations.
+The MAX30101/MAX32664 sensor takes a reading and the firmware turns it into a heartrate variability number to measure stress. This data is collected with other user metrics like sleep and run intensity, which is fed directly into an app that provides an interactive dashboard with training recommendations.
 
 **Sensor hardware:** A MAX30101/MAX32664 pulse oximeter connects to an Arduino Mega 2560 over I2C. The MAX32664 has its own onboard processor and a built-in BPM output, but the firmware bypasses that and reads the raw infrared signal directly, running my own signal processing instead.
 
